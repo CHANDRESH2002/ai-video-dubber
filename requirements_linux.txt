@@ -1,0 +1,24 @@
+torch
+torchaudio
+demucs
+deep-translator
+coqui-tts[codec]
+transformers==4.57.6
+ffmpeg-python
+soundfile
+numpy
+pyannote.audio
+unbabel-comet==2.2.7
+requests
+IndicTransToolkit
+
+# Primary translation path (Indic targets, e.g. Hindi) is IndicTrans2 via
+# transformers + IndicTransToolkit above — no extra service needed, but the
+# model is gated: accept the license at
+# https://huggingface.co/ai4bharat/indictrans2-en-indic-dist-200M first.
+#
+# Non-Indic targets (es, fr, de, ...) fall back to Ollama (not a pip
+# package) running locally: `brew install ollama && brew services start
+# ollama && ollama pull qwen2.5:7b` — untested since qwen2.5:7b was removed
+# from this machine to save memory; measured much lower translation
+# quality than IndicTrans2 even for Hindi (see components/translation.py).

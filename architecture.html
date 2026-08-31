@@ -1,0 +1,613 @@
+<title>Dubbing Pipeline</title>
+<style>
+  @font-face {
+    font-family: "SFMonoStack";
+    src: local("SF Mono"), local("SFMono-Regular");
+  }
+
+  :root {
+    --ink: #f5f3ee;
+    --panel: #ffffff;
+    --panel-2: #eeeae0;
+    --line: #c9c3b6;
+    --line-soft: #ddd8cc;
+    --text: #1c1a16;
+    --text-dim: #6b6558;
+    --amber: #b8721e;
+    --amber-soft: #b8721e1a;
+    --teal: #1f7d70;
+    --teal-soft: #1f7d701a;
+    --radius: 7px;
+    --serif: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMonoStack", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #14171c;
+      --panel: #1c2027;
+      --panel-2: #20242c;
+      --line: #3a4150;
+      --line-soft: #2a2f39;
+      --text: #e8e6de;
+      --text-dim: #8b93a3;
+      --amber: #e8a33d;
+      --amber-soft: #e8a33d26;
+      --teal: #4fb8a8;
+      --teal-soft: #4fb8a826;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #14171c;
+    --panel: #1c2027;
+    --panel-2: #20242c;
+    --line: #3a4150;
+    --line-soft: #2a2f39;
+    --text: #e8e6de;
+    --text-dim: #8b93a3;
+    --amber: #e8a33d;
+    --amber-soft: #e8a33d26;
+    --teal: #4fb8a8;
+    --teal-soft: #4fb8a826;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+
+  .wide {
+    max-width: 1040px;
+  }
+
+  header {
+    margin-bottom: 56px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(32px, 5vw, 46px);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+    color: var(--text);
+  }
+
+  .lede {
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.005em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+    color: var(--text);
+  }
+
+  .section {
+    margin-top: 72px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .section-note {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+  }
+
+  /* ---- diagram ---- */
+
+  figure {
+    margin: 0;
+  }
+
+  .diagram-frame {
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    padding: 28px 20px;
+    overflow-x: auto;
+  }
+
+  .diagram-frame svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 640px;
+  }
+
+  svg text {
+    font-family: var(--mono);
+    fill: currentColor;
+  }
+
+  .node-label {
+    font-family: var(--sans);
+    font-weight: 600;
+  }
+
+  figcaption {
+    margin-top: 16px;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    max-width: 68ch;
+  }
+
+  /* ---- component table ---- */
+
+  .components {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--line-soft);
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .component {
+    background: var(--panel);
+    display: grid;
+    grid-template-columns: 1.3fr 1.6fr 0.9fr 1.4fr;
+    gap: 20px;
+    padding: 18px 22px;
+    align-items: center;
+  }
+
+  .component.head {
+    background: var(--panel-2);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 12px 22px;
+  }
+
+  .c-name {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 15.5px;
+  }
+
+  .c-file {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .c-tool {
+    font-size: 13.5px;
+    color: var(--text-dim);
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border-radius: 100px;
+    width: fit-content;
+  }
+
+  .status::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status.done { color: var(--teal); background: var(--teal-soft); }
+  .status.open { color: var(--amber); background: var(--amber-soft); }
+
+  .c-metric {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .c-metric span {
+    display: block;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* ---- frontier callout ---- */
+
+  .frontier {
+    background: var(--amber-soft);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: 12px;
+    padding: 26px 28px;
+  }
+
+  .frontier h3 {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: var(--text);
+  }
+
+  .frontier p {
+    margin: 0 0 12px;
+    font-size: 14.5px;
+    color: var(--text);
+  }
+
+  .frontier p:last-child { margin-bottom: 0; }
+
+  .frontier .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+
+  .findings {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .finding {
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: 9px;
+    padding: 14px 16px;
+  }
+
+  .finding .k {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .finding .v {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    margin-top: 4px;
+    color: var(--text);
+  }
+
+  .finding .d {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line-soft);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 640px) {
+    .component { grid-template-columns: 1fr; gap: 6px; }
+    .component.head { display: none; }
+    .c-tool::before { content: "tool  "; color: var(--text-dim); }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">System architecture — v0, local pipeline</p>
+    <h1>A video goes in speaking one language.<br>The same voice comes out speaking another.</h1>
+    <p class="lede">Eight components, each independently built and tested, running entirely on local hardware — no paid APIs in the critical path. This page traces exactly how a video moves through it, then reports what's proven and what's still open.</p>
+  </header>
+
+  <div class="section wide">
+    <div class="section-head">
+      <h2>The pipeline</h2>
+      <p class="section-note">8 stages · 2 tributaries · 1 cross-cutting layer</p>
+    </div>
+
+    <figure>
+      <div class="diagram-frame">
+        <svg viewBox="0 0 1000 1170" role="img" aria-label="Flow diagram: a video is split into a vocal track and a background-music track. The vocal track is transcribed to English text and separately diarized to find who spoke when. Diarization also builds a clean reference clip per speaker. Transcription and diarization join at an alignment step that tags each line with its speaker, which then gets translated. Synthesis clones each speaker's voice using their reference clip to speak the translated line, timed to fit the original slot. Assembly mixes every speaker's track together plus the original background music onto the source video. An evaluation layer, shown as a dashed side panel, taps into translation and synthesis to score quality without affecting the main flow.">
+
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
+            </marker>
+            <marker id="arrowAmber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"></path>
+            </marker>
+            <marker id="arrowTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--teal)"></path>
+            </marker>
+          </defs>
+
+          <!-- ============ MAIN SPINE ============ -->
+          <!-- Video input -->
+          <rect x="235" y="18" width="190" height="40" rx="20" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+          <text x="330" y="43" text-anchor="middle" font-size="12.5" class="node-label">source video</text>
+
+          <line x1="330" y1="58" x2="330" y2="92" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+
+          <!-- Extract + Separate -->
+          <rect x="215" y="92" width="230" height="54" rx="7" fill="var(--panel-2)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="330" y="114" text-anchor="middle" font-size="13" class="node-label">Extract + Separate</text>
+          <text x="330" y="132" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">ffmpeg + Demucs</text>
+
+          <!-- split -->
+          <line x1="330" y1="146" x2="330" y2="178" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+          <text x="336" y="168" font-size="10.5" fill="var(--amber)">vocals.wav</text>
+
+          <!-- background tributary branch -->
+          <line x1="215" y1="119" x2="120" y2="119" stroke="var(--teal)" stroke-width="1.4"></line>
+          <line x1="120" y1="119" x2="120" y2="757" stroke="var(--teal)" stroke-width="1.4" stroke-dasharray="1 0"></line>
+          <line x1="120" y1="757" x2="216" y2="757" stroke="var(--teal)" stroke-width="1.4" marker-end="url(#arrowTeal)"></line>
+          <rect x="40" y="97" width="160" height="40" rx="20" fill="var(--teal-soft)" stroke="var(--teal)" stroke-width="1.2"></rect>
+          <text x="120" y="121" text-anchor="middle" font-size="11" fill="var(--teal)">no_vocals.wav</text>
+          <text x="120" y="740" text-anchor="middle" font-size="10" fill="var(--teal)">background, 80% mix</text>
+
+          <!-- Transcribe (left) + Diarize overlap (right), parallel -->
+          <rect x="210" y="178" width="240" height="58" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="330" y="201" text-anchor="middle" font-size="13" class="node-label">Transcribe</text>
+          <text x="330" y="219" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">Whisper, task=translate</text>
+          <text x="330" y="231" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">audio → English text, direct</text>
+
+          <line x1="330" y1="146" x2="700" y2="146" stroke="var(--amber)" stroke-width="1.4"></line>
+          <line x1="700" y1="146" x2="700" y2="178" stroke="var(--amber)" stroke-width="1.4" marker-end="url(#arrowAmber)"></line>
+
+          <rect x="595" y="178" width="210" height="58" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="700" y="201" text-anchor="middle" font-size="13" class="node-label">Diarize</text>
+          <text x="700" y="219" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">pyannote, overlap-aware</text>
+          <text x="700" y="231" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">who spoke when, no content</text>
+
+          <!-- Diarize exclusive branch -->
+          <line x1="805" y1="207" x2="850" y2="207" stroke="var(--teal)" stroke-width="1.4"></line>
+          <line x1="850" y1="207" x2="850" y2="282" stroke="var(--teal)" stroke-width="1.4" marker-end="url(#arrowTeal)"></line>
+          <rect x="855" y="272" width="120" height="52" rx="7" fill="var(--teal-soft)" stroke="var(--teal)" stroke-width="1.2"></rect>
+          <text x="915" y="292" text-anchor="middle" font-size="11" class="node-label" fill="var(--teal)">exclusive</text>
+          <text x="915" y="306" text-anchor="middle" font-size="9" fill="var(--teal)">non-overlap spans</text>
+          <text x="915" y="317" text-anchor="middle" font-size="9" fill="var(--teal)">→ voice refs</text>
+
+          <line x1="855" y1="298" x2="805" y2="298" stroke="var(--teal)" stroke-width="1.4"></line>
+          <line x1="805" y1="298" x2="700" y2="298" stroke="var(--teal)" stroke-width="1.4" marker-end="url(#arrowTeal)"></line>
+
+          <!-- Align -->
+          <line x1="330" y1="236" x2="330" y2="268" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+          <line x1="700" y1="236" x2="700" y2="252" stroke="var(--amber)" stroke-width="1.6"></line>
+          <line x1="700" y1="252" x2="450" y2="252" stroke="var(--amber)" stroke-width="1.6"></line>
+          <line x1="450" y1="252" x2="450" y2="268" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+
+          <rect x="240" y="268" width="240" height="54" rx="7" fill="var(--panel-2)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="360" y="290" text-anchor="middle" font-size="13" class="node-label">Align</text>
+          <text x="360" y="308" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">timestamp-overlap join, no ML</text>
+
+          <!-- Translate -->
+          <line x1="360" y1="322" x2="360" y2="356" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+          <rect x="240" y="356" width="240" height="58" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="360" y="379" text-anchor="middle" font-size="13" class="node-label">Translate</text>
+          <text x="360" y="397" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">Ollama · Qwen2.5, local</text>
+          <text x="360" y="409" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">per line, whole-conversation context</text>
+
+          <!-- Synthesize -->
+          <line x1="360" y1="414" x2="360" y2="448" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+
+          <line x1="915" y1="324" x2="915" y2="470" stroke="var(--teal)" stroke-width="1.4"></line>
+          <line x1="915" y1="470" x2="486" y2="470" stroke="var(--teal)" stroke-width="1.4" marker-end="url(#arrowTeal)"></line>
+          <text x="700" y="463" text-anchor="middle" font-size="9.5" fill="var(--teal)">per-speaker reference clip</text>
+
+          <rect x="240" y="448" width="246" height="64" rx="7" fill="var(--panel-2)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="363" y="470" text-anchor="middle" font-size="13" class="node-label">Synthesize</text>
+          <text x="363" y="488" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">XTTS-v2 voice clone</text>
+          <text x="363" y="503" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">speed + time-stretch to fit slot</text>
+
+          <!-- Assemble -->
+          <line x1="363" y1="512" x2="363" y2="546" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+          <rect x="216" y="546" width="270" height="64" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.2"></rect>
+          <text x="351" y="568" text-anchor="middle" font-size="13" class="node-label">Assemble</text>
+          <text x="351" y="586" text-anchor="middle" font-size="10.5" fill="var(--text-dim)">per-speaker canvases, summed</text>
+          <text x="351" y="601" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">+ background remix, muxed to source</text>
+
+          <!-- Output -->
+          <line x1="351" y1="610" x2="351" y2="644" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#arrowAmber)"></line>
+          <rect x="256" y="644" width="190" height="40" rx="20" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+          <text x="351" y="669" text-anchor="middle" font-size="12.5" class="node-label">dubbed video</text>
+
+          <!-- ============ EVALUATION PANEL ============ -->
+          <rect x="70" y="800" width="860" height="330" rx="10" fill="none" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="4 4"></rect>
+          <text x="94" y="828" font-size="11" letter-spacing="0.04em" fill="var(--text-dim)">EVALUATION — cross-cutting, doesn't touch the main flow</text>
+
+          <line x1="360" y1="414" x2="360" y2="770" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4"></line>
+          <line x1="360" y1="770" x2="270" y2="800" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrow)"></line>
+
+          <line x1="486" y1="480" x2="560" y2="770" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4"></line>
+          <line x1="560" y1="770" x2="560" y2="800" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrow)"></line>
+
+          <line x1="360" y1="512" x2="760" y2="770" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4"></line>
+          <line x1="760" y1="770" x2="760" y2="800" stroke="var(--text-dim)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrow)"></line>
+
+          <rect x="140" y="856" width="230" height="80" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.1"></rect>
+          <text x="255" y="880" text-anchor="middle" font-size="12" class="node-label">CometKiwi</text>
+          <text x="255" y="897" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">source vs. translated text</text>
+          <text x="255" y="911" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">reference-free quality score</text>
+          <text x="255" y="925" text-anchor="middle" font-size="10" fill="var(--amber)" font-weight="600">0.825</text>
+
+          <rect x="445" y="856" width="230" height="80" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.1"></rect>
+          <text x="560" y="880" text-anchor="middle" font-size="12" class="node-label">Duration match</text>
+          <text x="560" y="897" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">target slot vs. synthesized length</text>
+          <text x="560" y="911" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">overflow, absolute deviation</text>
+          <text x="560" y="925" text-anchor="middle" font-size="10" fill="var(--amber)" font-weight="600">+10.7% · 0.33s avg</text>
+
+          <rect x="645" y="856" width="230" height="80" rx="7" fill="var(--panel)" stroke="var(--line)" stroke-width="1.1" transform="translate(0,0)"></rect>
+          <text x="760" y="880" text-anchor="middle" font-size="12" class="node-label">Voice similarity</text>
+          <text x="760" y="897" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">reference clip vs. synthesized</text>
+          <text x="760" y="911" text-anchor="middle" font-size="9.5" fill="var(--text-dim)">speaker-embedding cosine sim</text>
+          <text x="760" y="925" text-anchor="middle" font-size="10" fill="var(--amber)" font-weight="600">0.69 same-lang</text>
+
+          <rect x="140" y="972" width="735" height="118" rx="7" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.1" stroke-dasharray="3 3"></rect>
+          <text x="164" y="998" font-size="12" class="node-label" fill="var(--amber)">Emotion preservation — open</text>
+          <text x="164" y="1017" font-size="10.5" fill="var(--text)">original segment vs. synthesized segment, judged by emotion2vec+</text>
+          <text x="164" y="1034" font-size="10.5" fill="var(--text)">today's test: neither label-match nor cosine similarity cleanly separated</text>
+          <text x="164" y="1051" font-size="10.5" fill="var(--text)">three known-different emotional lines — model or clip choice, still isolating which</text>
+          <text x="164" y="1074" font-size="10" fill="var(--text-dim)">no metric shipped yet</text>
+
+        </svg>
+      </div>
+      <figcaption>Amber traces the main content path (audio → text → translated text → audio); teal traces the two side-channels that skip text entirely — the background music track and each speaker's own voice reference. The dashed panel is measurement only: it reads from the pipeline but never feeds back into it.</figcaption>
+    </figure>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Component reference</h2>
+      <p class="section-note">7 built · 1 open</p>
+    </div>
+
+    <div class="components">
+      <div class="component head">
+        <div>Component</div>
+        <div>Approach</div>
+        <div>Status</div>
+        <div>Validated result</div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Diarization<span class="c-file">components/diarization.py</span></div>
+        <div class="c-tool">pyannote.audio — speaker-diarization-3.1</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">manual check<span>correctly held long monologues together, caught real speaker changes and cross-talk</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Transcription<span class="c-file">components/transcription.py</span></div>
+        <div class="c-tool">Whisper large-v3, MLX, task=translate</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">direct-to-English<span>avoids code-switch script mangling; hallucinated segments filtered</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Alignment<span class="c-file">components/alignment.py</span></div>
+        <div class="c-tool">timestamp-overlap join, no model</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">pure logic<span>dominant-speaker-by-overlap-time per segment</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Translation<span class="c-file">components/translation.py</span></div>
+        <div class="c-tool">Ollama · Qwen2.5:7b, local</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">0.825<span>CometKiwi, reference-free — survived 3 bug fixes (index drift, script leakage, language drift)</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Synthesis<span class="c-file">components/synthesis.py</span></div>
+        <div class="c-tool">XTTS-v2, per-speaker voice clone</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">+10.7%<span>total duration overflow; 0.33s avg deviation per line</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Assembly<span class="c-file">components/assembly.py</span></div>
+        <div class="c-tool">per-speaker canvases, summed + remixed</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">multi-track<span>real cross-talk preserved, no forced silence between speakers</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Evaluation<span class="c-file">components/evaluation.py</span></div>
+        <div class="c-tool">CometKiwi, speaker embeddings, duration deltas</div>
+        <div><span class="status done">verified</span></div>
+        <div class="c-metric">3 metrics<span>replaced eyeballing output with numbers we can re-run</span></div>
+      </div>
+
+      <div class="component">
+        <div class="c-name">Emotion preservation<span class="c-file">not yet a component</span></div>
+        <div class="c-tool">emotion2vec+, local — metric design in progress</div>
+        <div><span class="status open">open</span></div>
+        <div class="c-metric">—<span>the original goal of the project; everything above is groundwork for this</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Where the edge actually is</h2>
+    </div>
+
+    <div class="frontier">
+      <p class="tag">Current experiment</p>
+      <h3>Does a per-speaker voice reference carry emotion, or only identity?</h3>
+      <p>XTTS-v2 clones a speaker's voice from one reference clip — traced into the model source earlier: the clip gets pooled into a single fixed-size embedding for identity, and only its <em>first six seconds</em> shape delivery style, regardless of clip length. Every line from a speaker currently reuses the same blended reference, so whatever emotion the original line carried isn't reaching synthesis.</p>
+      <p>Today's test: pulled three lines from a genuinely emotional clip (<em>The Bear</em>, a monologue about childhood and anxiety) that a human would call clearly different in register, and ran them through emotion2vec+ two ways.</p>
+      <div class="findings">
+        <div class="finding">
+          <div class="k">Label match</div>
+          <div class="v">3 / 3 → neutral</div>
+          <div class="d">top prediction never changed, only confidence did (56–99.99%)</div>
+        </div>
+        <div class="finding">
+          <div class="k">Cosine similarity</div>
+          <div class="v">0.91 – 0.93</div>
+          <div class="d">near-different and near-same pairs landed in the same tight band</div>
+        </div>
+      </div>
+      <p>Neither comparison separated lines a person would call obviously different — likely because the source is quiet, naturalistic acting, and most emotion models are tuned on overt expression (raised voices, crying, laughing). Next: test against unambiguous emotion to isolate whether the limitation is the model or this clip, before committing to a metric design or touching the synthesis fix.</p>
+    </div>
+  </div>
+
+  <footer>
+    dubbing/ · local pipeline · no paid API in the critical path
+  </footer>
+</div>
