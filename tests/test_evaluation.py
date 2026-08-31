@@ -75,7 +75,7 @@ def main():
     speaker_references = {}
     for speaker in speakers:
         ref_path = ref_dir / f"{speaker}.wav"
-        extract_speaker_audio(vocals_path, clean_spans, speaker, ref_path)
+        extract_speaker_audio(vocals_path, clean_spans, speaker, ref_path, max_duration=20.0)
         speaker_references[speaker] = ref_path
 
     print(f"\nSynthesizing (target_lang={target_lang})...\n")

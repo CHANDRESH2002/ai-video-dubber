@@ -36,6 +36,8 @@ from dataclasses import replace
 
 import re
 
+import requests
+
 from data_types import Segment
 
 # ISO 639-1 (our config.py's XTTS_LANG_MAP) -> FLORES-200 code IndicTrans2
@@ -179,6 +181,65 @@ def translate_one(text: str, target_lang: str) -> str:
     from data_types import Segment
     seg = Segment(start=0.0, end=0.0, text=text)
     return translate_lines([seg], [(0, seg)], target_lang)[0] or text
+
+
+_DUBBING_OLLAMA_URL = "http://localhost:11434/api/chat"
+_DUBBING_MODEL = "qwen2.5:14b"
+
+_DUBBING_LANGUAGE_NAMES = {"hi": "Hindi", "fr": "French", "de": "German", "es": "Spanish"}
+
+
+def translate_dubbing_style(text: str, target_lang: str) -> str:
+    """
+    LLM-based translation prompted specifically for dubbing adaptation,
+    not literal accuracy -- distinct from translation_ollama_fallback.py's
+    earlier Ollama benchmark (which scored 0.603 vs IndicTrans2's 0.803 on
+    CometKiwi and was rejected for the main pipeline). That measurement was
+    literal faithfulness; CometKiwi would penalize a good idiomatic
+    adaptation for "deviating" from literal meaning even when the deviation
+    is exactly what a real dubbing translator would do on purpose (e.g.
+    English "I'm pissed off" isn't about urination, and a literal Hindi
+    rendering of it is wrong, not just stylistically flat). IndicTrans2 is
+    a dedicated MT model trained on formal/literal parallel corpora with no
+    notion of idiom, slang register, or dubbing-style adaptation at all --
+    this exists for the axis IndicTrans2 structurally can't cover, not to
+    replace it for everything.
+
+    Use for content likely to contain idiom/slang/culturally-bound
+    expressions; IndicTrans2 (translate_one) remains the better default for
+    plain descriptive/factual English.
+    """
+    language_name = _DUBBING_LANGUAGE_NAMES.get(target_lang, target_lang)
+    prompt = (
+        f"You are a professional {language_name} dubbing localization script "
+        f"writer for movies and TV. Your job is NOT to translate literally, "
+        f"word for word -- it's to find what a {language_name}-speaking "
+        f"audience would naturally say in the same emotional situation, "
+        f"preserving the INTENT, TONE, and IMPACT of the line, not its "
+        f"literal words.\n\n"
+        f"Rules:\n"
+        f"- If the line uses English idioms, slang, or profanity, find the "
+        f"natural {language_name} equivalent expression a person would "
+        f"actually say in that emotional register -- not a literal "
+        f"word-for-word translation.\n"
+        f"- Match the intensity/register: mild slang stays mild, strong "
+        f"profanity stays strong, formal stays formal.\n"
+        f"- Keep it natural spoken {language_name}, as if a real actor is "
+        f"delivering this line.\n\n"
+        f'Line: "{text}"\n\n'
+        f"Respond with ONLY the {language_name} translation -- no quotes, "
+        f"no explanation, nothing else."
+    )
+
+    response = requests.post(_DUBBING_OLLAMA_URL, json={
+        "model": _DUBBING_MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+    }, timeout=60)
+    response.raise_for_status()
+
+    translated = response.json()["message"]["content"].strip()
+    return translated.strip('"').strip("'").strip()
 
 
 def translate_segments(segments: list[Segment], target_lang: str) -> list[Segment]:

@@ -33,7 +33,7 @@ from components.duration_fit import fit_segment
 from components.speed_adjust import fit_duration
 from components.audio_trim import trim_trailing_silence
 from components.assembly import assemble
-from components.evaluation import duration_match_metrics
+from components.evaluation import duration_match_metrics, load_speaker_embedder, speaker_similarity
 from components.subtitles import write_srt, burn_subtitles
 
 
@@ -93,7 +93,7 @@ def main():
     speaker_references = {}
     for speaker in speakers:
         ref_path = ref_dir / f"{speaker}.wav"
-        extract_speaker_audio(vocals_path, clean_spans, speaker, ref_path)
+        extract_speaker_audio(vocals_path, clean_spans, speaker, ref_path, max_duration=20.0)
         speaker_references[speaker] = ref_path
     fallback_reference = next(iter(speaker_references.values())) if speaker_references else None
 
@@ -197,6 +197,21 @@ def main():
     print("  AFTER: ", duration_match_metrics(before_segs, after_synth))
     print(f"\nFinal video (no subtitles) -> {output_video}")
     print(f"Final video (sync-check subtitles) -> {subtitled_video}")
+
+    print("\nSpeaker-similarity vs. each speaker's (now short, curated) reference clip:")
+    embedder = load_speaker_embedder(HF_TOKEN)
+    ref_embeds = {sp: embedder(str(path)) for sp, path in speaker_references.items()}
+    import numpy as np
+    sims_by_speaker: dict[str, list[float]] = {}
+    for seg in synthesized:
+        if seg.speaker not in ref_embeds:
+            continue
+        emb = embedder(seg.path)
+        ref = ref_embeds[seg.speaker]
+        sim = float(np.dot(ref, emb) / (np.linalg.norm(ref) * np.linalg.norm(emb)))
+        sims_by_speaker.setdefault(seg.speaker, []).append(sim)
+    for sp, sims in sims_by_speaker.items():
+        print(f"  {sp}: n={len(sims)} avg={sum(sims)/len(sims):.3f} min={min(sims):.3f} max={max(sims):.3f}")
 
 
 if __name__ == "__main__":

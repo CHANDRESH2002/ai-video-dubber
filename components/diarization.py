@@ -64,24 +64,56 @@ def diarize(
     return spans
 
 
-def extract_speaker_audio(audio_path: Path, spans: list[SpeakerSpan], speaker: str, output_path: Path) -> Path:
+def extract_speaker_audio(
+    audio_path: Path,
+    spans: list[SpeakerSpan],
+    speaker: str,
+    output_path: Path,
+    max_duration: float | None = None,
+) -> Path:
     """
-    Concatenate every span attributed to one speaker into a single audio
-    file — "everything this speaker said, back to back." Two uses:
-      1. Verification: if diarization got confused, this is where it'd show
-         up audibly (a different voice mixed in, or missing lines).
-      2. Later: this becomes the per-speaker reference clip for XTTS voice
-         cloning, replacing the single global reference pipeline.py uses now.
+    Concatenate spans attributed to one speaker into a single audio file.
+    Two uses, which want different things:
+      1. Verification (max_duration=None, the default): concatenate
+         EVERYTHING this speaker said, back to back, so if diarization got
+         confused it shows up audibly (a different voice mixed in, or
+         missing lines).
+      2. Voice-cloning reference (max_duration set): Chatterbox's own
+         conditioning only ever looks at short fixed windows from the start
+         of this file for its acoustic reference (10s / 6s -- see
+         chatterbox.mtl_tts.ChatterboxMultilingualTTS.DEC_COND_LEN /
+         ENC_COND_LEN), so handing it a multi-minute concatenation doesn't
+         give it more to work with there -- it just means the actual 10s
+         window used is whatever happened to land first, which could be a
+         run of short interjections rather than clean, representative
+         speech. The one thing that DOES see the whole file is the
+         voice-identity embedding (self.ve.embeds_from_wavs), which is
+         being fed several minutes of audio -- far more than such
+         embedding models are normally run on (a few seconds to tens of
+         seconds), with hundreds of concatenation seams from many short
+         fragments in between. max_duration selects the LONGEST
+         continuous spans first (clean, uninterrupted stretches of real
+         speech) up to that budget, rather than every fragment regardless
+         of length, then keeps them in chronological order.
     """
     import soundfile as sf
     import numpy as np
 
     data, sr = sf.read(str(audio_path))
-    chunks = [
-        data[int(span.start * sr):int(span.end * sr)]
-        for span in spans
-        if span.speaker == speaker
-    ]
+    speaker_spans = [s for s in spans if s.speaker == speaker]
+
+    if max_duration is not None:
+        by_length = sorted(speaker_spans, key=lambda s: s.end - s.start, reverse=True)
+        selected = []
+        total = 0.0
+        for span in by_length:
+            if total >= max_duration:
+                break
+            selected.append(span)
+            total += span.end - span.start
+        speaker_spans = sorted(selected, key=lambda s: s.start)
+
+    chunks = [data[int(span.start * sr):int(span.end * sr)] for span in speaker_spans]
     combined = np.concatenate(chunks) if chunks else np.zeros(0)
     sf.write(str(output_path), combined, sr)
     return output_path
