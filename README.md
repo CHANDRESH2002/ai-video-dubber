@@ -18,6 +18,23 @@ Upload your own short video and get it dubbed into Hindi -- cloned speaker
 voices, timing-matched, subtitles burned in -- using Google Colab's free GPU.
 No local setup needed. Click the badge above.
 
+## How it works
+
+```mermaid
+flowchart TD
+    A[Source video] --> B[ffmpeg: extract audio]
+    B --> C[Demucs: separate vocals / background]
+    C --> D[BandIt: isolate non-verbal vocalizations]
+    D --> E[pyannote: diarize speakers]
+    E --> F[SenseVoice: transcribe per speaker]
+    F --> G[Style prompt: pitch/speed/emotion per line]
+    F --> H[IndicTrans2: translate to target language]
+    H --> I[Gender-agreement correction]
+    I --> J[Chatterbox TTS: clone each speaker's voice]
+    J --> K[Trim + speed-fit to original timing]
+    K --> L[Assemble: mix audio, burn subtitles]
+    L --> M[Final dubbed video]
+
 ## Quick start
 
 ```bash
