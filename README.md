@@ -10,6 +10,14 @@ This started as a solo/unfunded exploration and is still early — expect rough
 edges. See [Known issues](./CLAUDE.md#known-open-issues) before relying on it
 for anything real. Contributions and issue reports welcome.
 
+## Try it now
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CHANDRESH2002/ai-video-dubber/blob/main/AI_Video_Dubber_Demo.ipynb)
+
+Upload your own short video and get it dubbed into Hindi -- cloned speaker
+voices, timing-matched, subtitles burned in -- using Google Colab's free GPU.
+No local setup needed. Click the badge above.
+
 ## Quick start
 
 ```bash
