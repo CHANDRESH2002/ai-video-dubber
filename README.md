@@ -3,8 +3,7 @@
 Takes a source video, transcribes it, translates it, and re-synthesizes speech
 in one or more target languages **cloning each original speaker's own voice**,
 fits each line's timing to match the original speaker's cadence, and can
-package multiple languages as selectable audio/subtitle tracks in one file
-(like a DVD/Netflix language menu) instead of one file per language.
+package multiple languages as selectable audio/subtitle tracks in one file instead of one file per language.
 
 This started as a solo/unfunded exploration and is still early — expect rough
 edges. See [Known issues](./CLAUDE.md#known-open-issues) before relying on it
