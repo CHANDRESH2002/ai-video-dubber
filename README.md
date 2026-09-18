@@ -38,9 +38,8 @@ flowchart TD
 
 
 
-
 ## Quick start
-
+```
 ```bash
 cp .env.example .env   # fill in your own HF_TOKEN
 ./dub_from_video.sh <video_path> <output_path> <target_lang> [num_speakers]
