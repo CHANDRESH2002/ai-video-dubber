@@ -13,6 +13,7 @@ pyannote.audio==4.0.7
 torchcodec==0.7.0
 requests
 IndicTransToolkit
+num2words
 
 # Primary translation path (Indic targets, e.g. Hindi) is IndicTrans2 via
 # transformers + IndicTransToolkit above — no extra service needed, but the

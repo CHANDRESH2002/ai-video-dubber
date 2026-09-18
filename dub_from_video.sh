@@ -37,9 +37,15 @@ else
 fi
 
 # .venv_cass (BandIt separation, see components/cass_separation.py) is
-# currently only built on this Mac -- no Linux/GPU-box build yet, so unlike
-# MAIN_PY/CHATTERBOX_PY there's no project-local venv branch here at all.
+# currently only built on this Mac -- no Linux/GPU-box build yet. Rather
+# than hard-fail on any machine without it (a real Linux GPU box, Colab),
+# fall back to Demucs's own vocals/background split directly below --
+# BandIt only adds non-verbal-vocalization preservation on top of that,
+# it's not required for the pipeline to run.
 CASS_PY="${CASS_PY:-/Users/chandreshpatel/gpu-dubbing/.venv_cass/bin/python3}"
+if [ ! -x "$CASS_PY" ] && [ -x ./.venv_cass/bin/python3 ]; then
+    CASS_PY="./.venv_cass/bin/python3"
+fi
 
 mkdir -p temp output
 
@@ -60,8 +66,15 @@ else
     # for the reproducibility tradeoff this reintroduces.
     $MAIN_PY -m demucs --two-stems=vocals -n htdemucs "$AUDIO_PATH" -o "$DEMUCS_OUT"
 
-    echo "=== Stage 2: BandIt on Demucs's vocals (pure speech vs. non-verbal vocalizations -- laughs/cries/screams get merged into background instead of silently lost/mistranslated; see components/nonverbal_separation.py; CPU-only, ~45s/6s-chunk of the vocals track) ==="
-    $CASS_PY tests/run_nonverbal_separation.py "$DEMUCS_VOCALS" "$DEMUCS_BACKGROUND" "$VOCALS_PATH" "$BACKGROUND_PATH"
+    if [ -x "$CASS_PY" ]; then
+        echo "=== Stage 2: BandIt on Demucs's vocals (pure speech vs. non-verbal vocalizaams get merged into background instead of silently lost/mistranslated; seecomponents/nonverbal_separation.py; CPU-only, ~45s/6s-chunk of the vocals track) ==="
+        $CASS_PY tests/run_nonverbal_separation.py "$DEMUCS_VOCALS" "$DEMUCS_BACKGROUND" "$VOCALS_PATH" "$BACKGROUND_PATH"
+    else
+        echo "=== .venv_cass not found on this machine -- skipping BandIt, using Demucs's vocals/background split directly ==="
+        mkdir -p "$CASS_OUT"
+        cp "$DEMUCS_VOCALS" "$VOCALS_PATH"
+        cp "$DEMUCS_BACKGROUND" "$BACKGROUND_PATH"
+    fi
 fi
 
 echo "=== Running prepare/synthesize/assemble ==="
