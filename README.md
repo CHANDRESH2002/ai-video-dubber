@@ -38,7 +38,7 @@ flowchart TD
 
 
 
-## Quick start
+
 ```
 ```bash
 cp .env.example .env   # fill in your own HF_TOKEN
