@@ -21,7 +21,32 @@ No local setup needed. Click the badge above.
 ## How it works
 
 ```mermaid
-flowchart TD## System requirements
+flowchart TD
+ A[Source video] --> B[ffmpeg: extract audio]
+    B --> C[Demucs: separate vocals / background]
+    C --> D[BandIt: isolate non-verbal vocalizations]
+    D --> E[pyannote: diarize speakers]
+    E --> F[SenseVoice: transcribe per speaker]
+    F --> G[Style prompt: pitch/speed/emotion per line]
+    F --> H[IndicTrans2: translate to target language]
+    H --> I[Gender-agreement correction]
+    I --> J[Chatterbox TTS: clone each speaker's voice]
+    J --> K[Trim + speed-fit to original timing]
+    K --> L[Assemble: mix audio, burn subtitles]
+    L --> M[Final dubbed video]
+
+
+
+
+
+```
+
+
+
+
+
+
+## System requirements
 
 - **OS**: Linux (tested) or Google Colab. Mac can run it too, but two of the
   three environments below can't run natively there (see `CLAUDE.md`).
@@ -107,23 +132,6 @@ build them on a fresh machine. Some optional refinement steps (emotion-
 aware style prompts, LLM-based gender-agreement correction) use a local
 Ollama instance if one's running (ollama pull qwen2.5:14b) and silently
 skip themselves otherwise -- not required to get a working dub.
-    A[Source video] --> B[ffmpeg: extract audio]
-    B --> C[Demucs: separate vocals / background]
-    C --> D[BandIt: isolate non-verbal vocalizations]
-    D --> E[pyannote: diarize speakers]
-    E --> F[SenseVoice: transcribe per speaker]
-    F --> G[Style prompt: pitch/speed/emotion per line]
-    F --> H[IndicTrans2: translate to target language]
-    H --> I[Gender-agreement correction]
-    I --> J[Chatterbox TTS: clone each speaker's voice]
-    J --> K[Trim + speed-fit to original timing]
-    K --> L[Assemble: mix audio, burn subtitles]
-    L --> M[Final dubbed video]
-
-
-
-
-
-```
+   
 
 
