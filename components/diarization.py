@@ -4,6 +4,7 @@ said. That gets matched against transcription separately, in a later
 component (timestamp-overlap join), not here.
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 from config import DIARIZATION_MODEL
@@ -109,8 +110,22 @@ def extract_speaker_audio(
         for span in by_length:
             if total >= max_duration:
                 break
+            remaining = max_duration - total
+            span_duration = span.end - span.start
+            if span_duration > remaining:
+                # Truncate rather than skip -- a single continuous span
+                # (e.g. one long monologue turn with no internal pause for
+                # diarization to split on) can easily exceed max_duration
+                # all by itself. Without this, the old code would add such
+                # a span WHOLE regardless of budget, since it only checked
+                # the running total before adding, never cut the span
+                # itself -- silently blowing past max_duration entirely
+                # (confirmed: produced a 59.9s clip when called with
+                # max_duration=20.0, on real continuous news narration).
+                span = replace(span, end=span.start + remaining)
+                span_duration = remaining
             selected.append(span)
-            total += span.end - span.start
+            total += span_duration
         speaker_spans = sorted(selected, key=lambda s: s.start)
 
     chunks = [data[int(span.start * sr):int(span.end * sr)] for span in speaker_spans]

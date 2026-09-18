@@ -36,3 +36,50 @@ def assign_speakers(segments: list[Segment], speaker_spans: list[SpeakerSpan]) -
         tagged.append(replace(seg, speaker=speaker))
 
     return tagged
+
+
+def build_speaker_blocks(
+    spans: list[SpeakerSpan], gap_threshold: float = 1.5, max_duration: float | None = None,
+) -> list[SpeakerSpan]:
+    """
+    Merges consecutive same-speaker EXCLUSIVE diarization spans (see
+    components/diarization.py's exclusive=True -- non-overlapping by
+    construction, safe to slice audio on) into continuous blocks, so
+    per-speaker transcription (transcribe_per_speaker()) gets natural
+    sentence-length audio instead of many tiny, fragmented, context-free
+    ASR calls on pyannote's often-choppy raw turns (a single real speaker
+    can easily produce 5-10+ short turns in under a minute, split by
+    micro-pauses that aren't real speaker changes).
+
+    Bridges gaps up to gap_threshold seconds between spans from the SAME
+    speaker (a natural pause within continuous speech), but always cuts
+    immediately at any genuine speaker change regardless of gap size --
+    this is what guarantees a merged block can never contain more than one
+    speaker. gap_threshold=1.5s is a first-pass heuristic (based on the
+    gaps observed in real diarization output on this project's test
+    clips), not empirically tuned across a broad sample -- revisit if
+    blocks come out wrongly split or wrongly merged on a new clip.
+
+    max_duration (optional, default None = unbounded): also cuts to a new
+    block once the running block would exceed this many seconds, even for
+    the same speaker with a short gap. Added for components_indic/'s
+    Hindi-source pipeline -- IndicConformer (unlike SenseVoice) emits no
+    punctuation at all, so there's no sentence-level split happening
+    downstream inside a block; without a cap, one merged block could become
+    a multi-sentence paragraph handed whole to translation and to IndicF5's
+    synthesis, which (like most F5-style TTS) is built around utterance-
+    length inputs. Left as None (no behavior change) for the existing
+    English->Hindi pipeline, which doesn't need this -- SenseVoice's own
+    punctuation-based reconstruct_segments() already keeps final segments
+    short regardless of block length.
+    """
+    spans = sorted(spans, key=lambda s: s.start)
+    blocks: list[SpeakerSpan] = []
+    for span in spans:
+        fits_gap = blocks and blocks[-1].speaker == span.speaker and span.start - blocks[-1].end <= gap_threshold
+        fits_duration = max_duration is None or not blocks or (span.end - blocks[-1].start) <= max_duration
+        if fits_gap and fits_duration:
+            blocks[-1] = replace(blocks[-1], end=span.end)
+        else:
+            blocks.append(span)
+    return blocks

@@ -34,6 +34,7 @@ class Segment:
     end: float
     text: str                  # already-translated text (see components/transcription.py)
     speaker: str | None = None
+    style_prompt: str = ""     # natural-language style description, see components/style_prompt.py
 
 
 @dataclass

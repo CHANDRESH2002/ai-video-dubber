@@ -18,6 +18,7 @@ BACKGROUND_PATH="$3"
 OUTPUT_PATH="$4"
 TARGET_LANG="${5:-hi}"
 NUM_SPEAKERS="${6:-}"
+TTS_ENGINE="${TTS_ENGINE:-chatterbox}"   # chatterbox (default, validated) or voxcpm (new, see the integration plan)
 
 # Prefer the project-local venvs on Linux (rented GPU box) -- that's the
 # only platform they're actually built for. On this Mac, `.venv_main` and
@@ -36,12 +37,30 @@ if [ "$(uname)" = "Linux" ] && [ -x ./.venv_chatterbox/bin/python3 ]; then
 else
     CHATTERBOX_PY="${CHATTERBOX_PY:-/Users/chandreshpatel/.pyenv/versions/3.12.5/bin/python3}"
 fi
+# Unlike .venv_main/.venv_chatterbox, .venv_voxcpm is a REAL, working venv
+# on this Mac too (built directly here, not an NFS-visible Linux copy) --
+# voxcpm pulls its own torch (2.14.0), which would conflict with the main
+# env's pinned torch if installed into the shared Mac pyenv interpreter,
+# so it always gets its own venv on either platform. Only exists on this
+# Mac so far -- Linux install is a follow-up, same situation .venv_cass is
+# in today.
+VOXCPM_PY="${VOXCPM_PY:-./.venv_voxcpm/bin/python3}"
+
+# Exported so stage 2 (a different interpreter/venv) can shell back out to
+# the main env for condense-and-retranslate retries on overflowing segments
+# -- see components/synthesis_chatterbox.py and
+# components/condense_retry_worker.py.
+export MAIN_PY
 
 echo "=== Stage 1/3: prepare (main env) ==="
 $MAIN_PY tests/dub_multispeaker_prepare.py "$VIDEO_PATH" "$VOCALS_PATH" "$TARGET_LANG" $NUM_SPEAKERS
 
-echo "=== Stage 2/3: synthesize (chatterbox env) ==="
-$CHATTERBOX_PY tests/dub_multispeaker_synthesize.py
+echo "=== Stage 2/3: synthesize ($TTS_ENGINE env) ==="
+if [ "$TTS_ENGINE" = "voxcpm" ]; then
+    $VOXCPM_PY tests/dub_multispeaker_synthesize_voxcpm.py
+else
+    $CHATTERBOX_PY tests/dub_multispeaker_synthesize.py
+fi
 
 echo "=== Stage 3/3: assemble (main env) ==="
 $MAIN_PY tests/dub_multispeaker_assemble.py "$BACKGROUND_PATH" "$OUTPUT_PATH"

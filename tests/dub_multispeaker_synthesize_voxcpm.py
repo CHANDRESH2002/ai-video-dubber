@@ -1,13 +1,15 @@
 """
-Stage 2/3 of the multi-speaker Chatterbox dub pipeline. Must run in the
-isolated .venv_chatterbox environment:
+Stage 2/3 of the multi-speaker dub pipeline, VoxCPM2 variant. Must run in
+the isolated .venv_voxcpm environment:
 
-    .venv_chatterbox/bin/python3 tests/dub_multispeaker_synthesize.py
+    .venv_voxcpm/bin/python3 tests/dub_multispeaker_synthesize_voxcpm.py
 
-Reads the manifest written by dub_multispeaker_prepare.py (stage 1, main
-env), synthesizes every segment with its own speaker's reference clip via
-Chatterbox, and writes a second manifest for stage 3 (assembly, back in
-the main env).
+Same role as dub_multispeaker_synthesize.py (the Chatterbox version) --
+kept as a separate script rather than a flag on that one because it must
+run in a different venv. Reads the manifest written by
+dub_multispeaker_prepare.py (stage 1, main env), synthesizes every segment
+with its own speaker's reference clip via VoxCPM2, and writes the same
+second-manifest shape for stage 3 (assembly, back in the main env).
 """
 
 import dataclasses
@@ -18,7 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data_types import Segment
-from components.synthesis_chatterbox import synthesize
+from components.synthesis_voxcpm import synthesize
 
 
 def main():
@@ -27,14 +29,9 @@ def main():
     segments = [Segment(**s) for s in manifest["segments"]]
     speaker_references = {k: Path(v) for k, v in manifest["speaker_references"].items()}
     target_lang = manifest["target_lang"]
-    source_texts = manifest.get("source_texts")
-    speaker_genders = manifest.get("speaker_genders")
 
-    output_dir = Path("temp/synthesis_multispeaker_chatterbox")
-    synthesized = synthesize(
-        segments, speaker_references, output_dir, target_lang=target_lang,
-        source_texts=source_texts, speaker_genders=speaker_genders,
-    )
+    output_dir = Path("temp/synthesis_multispeaker_voxcpm")
+    synthesized = synthesize(segments, speaker_references, output_dir, target_lang=target_lang)
 
     out_path = Path("temp/multispeaker_synthesized.json")
     out_path.write_text(json.dumps({
